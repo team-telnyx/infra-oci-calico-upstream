@@ -3,3 +3,5 @@ names:
 project:
   squad: infra.core.squad
   primary_maintainer: aitor
+build:
+  allow_secret_plaintext: true
