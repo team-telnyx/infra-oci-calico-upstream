@@ -76,21 +76,52 @@ bin/tigera-operator-$(GIT_VERSION).tgz: bin/helm $(shell find ./charts/tigera-op
 	--app-version $(GIT_VERSION)
 
 # Telnyx CI images
-IMAGE_PREFIX:=registry.internal.telynx.com/infra/infra-oci-calico-upstream
+IMAGE_CACHE_PREFIX:=registry.internal.telnyx.com/library
+IMAGE_PREFIX:=registry.internal.telnyx.com/infra/infra-oci-calico-upstream
+IMAGE_PREFIX_PLAYGROUND:=registry.internal.telnyx.com/playground/infra-oci-calico-upstream
+IMAGE_PREFIX_PUSH:=$(IMAGE_PREFIX_PLAYGROUND)
+IMAGE_TAG:=v3.27.3
 
 build:
+	$(MAKE) -C node image IMAGETAG=red VALIDARCHES=amd64
 	$(MAKE) -C pod2daemon image IMAGETAG=red VALIDARCHES=amd64
 	$(MAKE) -C cni-plugin image IMAGETAG=red VALIDARCHES=amd64
 	$(MAKE) -C typha image IMAGETAG=$(GIT_VERSION) VALIDARCHES=$(ARCH)
-	$(MAKE) -C node image IMAGETAG=red VALIDARCHES=amd64
 	docker tag calico/node:latest-amd64 $(IMAGE_PREFIX):red
 	docker tag calico/node:latest-amd64 $(IMAGE_PREFIX):node
+	docker tag calico/node-driver-registrar:latest-amd64 $(IMAGE_PREFIX):node-driver-registrar
 	docker tag calico/pod2daemon-flexvol:latest-amd64 $(IMAGE_PREFIX):pod2daemon
 	docker tag calico/cni:latest-amd64 $(IMAGE_PREFIX):cni
 	docker tag calico/typha:latest-amd64 $(IMAGE_PREFIX):typha
 
+pushCI:
+	$(MAKE) push IMAGE_PREFIX_PUSH=$(IMAGE_PREFIX)
+
+push:
+	docker tag calico/node:latest-amd64 $(IMAGE_PREFIX_PUSH)/calico/node:$(IMAGE_TAG)
+	docker tag calico/pod2daemon-flexvol:latest-amd64 $(IMAGE_PREFIX_PUSH)/calico/pod2daemon-flexvol:$(IMAGE_TAG)
+	docker tag calico/cni:latest-amd64 $(IMAGE_PREFIX_PUSH)/calico/cni:$(IMAGE_TAG)
+	docker tag calico/typha:latest-amd64 $(IMAGE_PREFIX_PUSH)/calico/typha:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/node:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/pod2daemon-flexvol:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/cni:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/typha:$(IMAGE_TAG)
+	# Retag images not customised
+	docker pull $(IMAGE_CACHE_PREFIX)/calico/node-driver-registrar:$(IMAGE_TAG)
+	docker tag $(IMAGE_CACHE_PREFIX)/calico/node-driver-registrar:$(IMAGE_TAG) $(IMAGE_PREFIX_PUSH)/calico/node-driver-registrar:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/node-driver-registrar:$(IMAGE_TAG)
+	docker pull $(IMAGE_CACHE_PREFIX)/calico/apiserver:$(IMAGE_TAG)
+	docker tag $(IMAGE_CACHE_PREFIX)/calico/apiserver:$(IMAGE_TAG) $(IMAGE_PREFIX_PUSH)/calico/apiserver:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/apiserver:$(IMAGE_TAG)
+	docker pull $(IMAGE_CACHE_PREFIX)/calico/kube-controllers:$(IMAGE_TAG)
+	docker tag $(IMAGE_CACHE_PREFIX)/calico/kube-controllers:$(IMAGE_TAG) $(IMAGE_PREFIX_PUSH)/calico/kube-controllers:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/kube-controllers:$(IMAGE_TAG)
+	docker pull $(IMAGE_CACHE_PREFIX)/calico/csi:$(IMAGE_TAG)
+	docker tag $(IMAGE_CACHE_PREFIX)/calico/csi:$(IMAGE_TAG) $(IMAGE_PREFIX_PUSH)/calico/csi:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX_PUSH)/calico/csi:$(IMAGE_TAG)
+
 # Telnyx Tests
-test: release-test ci-preflight-checks
+test: release-test ci-preflight-checks pushCI
 	echo "Tests..."
 
 # Build all Calico images for the current architecture.
