@@ -1,5 +1,5 @@
 names:
   service: infra-oci-calico-upstream
 project:
-  squad: infra-core-squad
+  squad: infra.core.squad
   primary_maintainer: aitor
