@@ -76,11 +76,18 @@ bin/tigera-operator-$(GIT_VERSION).tgz: bin/helm $(shell find ./charts/tigera-op
 	--app-version $(GIT_VERSION)
 
 # Telnyx CI images
+IMAGE_PREFIX:=registry.internal.telynx.com/infra/infra-oci-calico-upstream
+
 build:
 	$(MAKE) -C pod2daemon image IMAGETAG=red VALIDARCHES=amd64
 	$(MAKE) -C cni-plugin image IMAGETAG=red VALIDARCHES=amd64
 	$(MAKE) -C typha image IMAGETAG=$(GIT_VERSION) VALIDARCHES=$(ARCH)
 	$(MAKE) -C node image IMAGETAG=red VALIDARCHES=amd64
+	docker tag calico/node:latest-amd64 $(IMAGE_PREFIX):red
+	docker tag calico/node:latest-amd64 $(IMAGE_PREFIX):node
+	docker tag calico/pod2daemon-flexvol:latest-amd64 $(IMAGE_PREFIX):pod2daemon
+	docker tag calico/cni:latest-amd64 $(IMAGE_PREFIX):cni
+	docker tag calico/typha:latest-amd64 $(IMAGE_PREFIX):typha
 
 # Telnyx Tests
 test: release-test ci-preflight-checks
