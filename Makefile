@@ -75,6 +75,17 @@ bin/tigera-operator-$(GIT_VERSION).tgz: bin/helm $(shell find ./charts/tigera-op
 	--version $(GIT_VERSION) \
 	--app-version $(GIT_VERSION)
 
+# Telnyx CI images
+build:
+	$(MAKE) -C pod2daemon image IMAGETAG=red VALIDARCHES=amd64
+	$(MAKE) -C cni-plugin image IMAGETAG=red VALIDARCHES=amd64
+	$(MAKE) -C typha image IMAGETAG=$(GIT_VERSION) VALIDARCHES=$(ARCH)
+	$(MAKE) -C node image IMAGETAG=red VALIDARCHES=amd64
+
+# Telnyx Tests
+test: release-test ci-preflight-checks
+	echo "Tests..."
+
 # Build all Calico images for the current architecture.
 image:
 	$(MAKE) -C pod2daemon image IMAGETAG=$(GIT_VERSION) VALIDARCHES=$(ARCH)
